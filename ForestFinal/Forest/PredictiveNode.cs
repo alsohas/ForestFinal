@@ -43,7 +43,10 @@ namespace ForestFinal.Forest
                 nodeList = new List<PredictiveNode>();
                 region.TryAdd(Root.NodeID, nodeList);
             }
-            nodeList.Add(this);
+            lock (nodeList)
+            {
+                nodeList.Add(this);
+            }
         }
 
         public void Expand()
@@ -65,15 +68,16 @@ namespace ForestFinal.Forest
 
                 //PredictiveNode child = new PredictiveNode(RoadNetwork, node, cost: kvPair.Value.Cost, depth: Depth - 1,
                 //                                          maxDepth: MaxDepth, Root, PredictiveRegions);
-                PredictiveNode child = new PredictiveNode(RoadNetwork, node, cost: kvPair.Value.Distance, depth: Depth - 1,
+                PredictiveNode child = new PredictiveNode(RoadNetwork, node, cost: kvPair.Value.Cost, depth: Depth - 1,
                                           maxDepth: MaxDepth, Root, PredictiveRegions);
                 double distance = kvPair.Value.Distance;
                 if (!WeightedChildren.ContainsKey(distance))
                 {
                     WeightedChildren.Add(distance, child);
-                } else
+                }
+                else
                 {
-                    WeightedChildren.Add(distance+0.01, child);
+                    WeightedChildren.Add(distance + 0.01, child);
                 }
                 Children.Add(child.Root.NodeID, child);
                 Task task = Task.Factory.StartNew(() => child.Expand());
@@ -89,12 +93,12 @@ namespace ForestFinal.Forest
                 return 0;
             }
             double sumCost = 0;
-            foreach(var kv in Children)
+            foreach (KeyValuePair<string, PredictiveNode> kv in Children)
             {
                 sumCost += kv.Value.Cost;
             }
             double auxiliarySumCost = (Children.Count - 1) * sumCost;
-            Children.TryGetValue(nodeID, out var node);
+            Children.TryGetValue(nodeID, out PredictiveNode node);
             if (sumCost == node.Cost)
             {
                 node.Probability = 1;

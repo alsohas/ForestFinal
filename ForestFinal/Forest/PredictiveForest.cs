@@ -1,8 +1,6 @@
-﻿using System;
-using System.Collections.Concurrent;
+﻿using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Device.Location;
-using System.Diagnostics;
 
 namespace ForestFinal.Forest
 {
@@ -20,7 +18,7 @@ namespace ForestFinal.Forest
             if (CurrentStep == 0)
             {
                 MRegion.Update(RoadNetwork.GetNodesWithinRange(center, radius));
-                MRegion.Regions.TryGetValue(CurrentStep, out var region);
+                MRegion.Regions.TryGetValue(CurrentStep, out ConcurrentDictionary<string, RegionalNode> region);
                 ExpandPredictiveTrees(region);
                 CurrentStep += 1;
                 return;
@@ -63,7 +61,9 @@ namespace ForestFinal.Forest
                 validParents.Add(pastNode.NodeID);
             }
 
-            // adding all valid nodes to the latest region
+            /// adding all valid nodes to the latest region
+            /// Note: the first region is initialized in <see cref="Region.Update(IEnumerable{Node})"/>
+            ///
             ConcurrentDictionary<string, RegionalNode> newRegion = new ConcurrentDictionary<string, RegionalNode>();
             foreach (string nodeID in currentNodes) // note that current node has been cleared of all dead-end nodes
             {
@@ -122,7 +122,7 @@ namespace ForestFinal.Forest
             }
             return PruneRegions(steps - 1, obsoleteParents);
         }
-        
+
         private void ExpandPredictiveTrees(ConcurrentDictionary<string, RegionalNode> newRegion)
         {
             PredictiveRegions = new ConcurrentDictionary<int, ConcurrentDictionary<string, List<PredictiveNode>>>();
@@ -134,24 +134,24 @@ namespace ForestFinal.Forest
                 predictiveNode.Expand();
             }
         }
-        
+
         #region predictive
         internal Dictionary<string, double> PredictNodes(int step)
         {
             double sumCost = 0;
             int nodeCount = 0;
-            var costs = GenerateNodeCosts(step, ref nodeCount);
+            Dictionary<string, double> costs = GenerateNodeCosts(step, ref nodeCount);
             if (costs == null)
             {
                 return null;
             }
-            foreach (var kv in costs)
+            foreach (KeyValuePair<string, double> kv in costs)
             {
                 sumCost += kv.Value;
             }
 
-            var newCosts = new Dictionary<string, double>();
-            foreach (var kv in costs)
+            Dictionary<string, double> newCosts = new Dictionary<string, double>();
+            foreach (KeyValuePair<string, double> kv in costs)
             {
                 double probability = (kv.Value) * (1 / sumCost);
                 //Debug.Assert(probability >= 0);
@@ -167,21 +167,26 @@ namespace ForestFinal.Forest
                 return null;
             }
 
-            PredictiveRegions.TryGetValue(step - 1, out var previousRegion);
+            PredictiveRegions.TryGetValue(step - 1, out ConcurrentDictionary<string, List<PredictiveNode>> previousRegion);
             if (previousRegion == null)
             {
                 return null;
             }
-            var possibleChildren = new Dictionary<string, List<PredictiveNode>>();
-            foreach (var kv in previousRegion)
+            Dictionary<string, List<PredictiveNode>> possibleChildren = new Dictionary<string, List<PredictiveNode>>();
+            foreach (KeyValuePair<string, List<PredictiveNode>> kv in previousRegion)
             {
-                var nodeList = kv.Value;
-                foreach (var node in nodeList)
+                List<PredictiveNode> nodeList = kv.Value;
+                foreach (PredictiveNode node in nodeList)
                 {
-                    foreach (var _kv in node.WeightedChildren)
+                    if (node == null)
                     {
-                        var child = _kv.Value;
-                        possibleChildren.TryGetValue(child.Root.NodeID, out var possibleChildrenList);
+                        continue;
+                    }
+
+                    foreach (KeyValuePair<double, PredictiveNode> _kv in node.WeightedChildren)
+                    {
+                        PredictiveNode child = _kv.Value;
+                        possibleChildren.TryGetValue(child.Root.NodeID, out List<PredictiveNode> possibleChildrenList);
                         if (possibleChildrenList == null)
                         {
                             possibleChildrenList = new List<PredictiveNode>();
@@ -202,16 +207,16 @@ namespace ForestFinal.Forest
             {
                 return null;
             }
-            var costs = new Dictionary<string, double>();
-            foreach (var kv in possibleChildren)
+            Dictionary<string, double> costs = new Dictionary<string, double>();
+            foreach (KeyValuePair<string, List<PredictiveNode>> kv in possibleChildren)
             {
                 double localSum = 0;
-                foreach (var node in kv.Value)
+                foreach (PredictiveNode node in kv.Value)
                 {
                     nodeCount += 1;
                     localSum += node.Probability;
                 }
-                var nodeExists = costs.TryGetValue(kv.Key, out var previousCosts);
+                bool nodeExists = costs.TryGetValue(kv.Key, out double previousCosts);
                 if (!nodeExists)
                 {
                     costs.Add(kv.Key, localSum);
