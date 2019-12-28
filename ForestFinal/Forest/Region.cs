@@ -1,36 +1,24 @@
 ﻿using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
-using System.Diagnostics;
+using System.Threading;
 
 namespace ForestFinal.Forest
 {
+    [Serializable()]
     public class Region
     {
-        private static readonly object myLock = new object();
-        private static Region region = null;
-        public int RegionCount { get; set; }
-        public ConcurrentDictionary<int, ConcurrentDictionary<string, RegionalNode>> Regions;
+        //private static readonly object myLock = new object();
+        //private static Region region = null;
+        public int RegionCount = 0;
+        public ConcurrentDictionary<int, ConcurrentDictionary<string, RegionalNode>> Regions = new ConcurrentDictionary<int, ConcurrentDictionary<string, RegionalNode>>();
 
-        public Region()
-        {
-            RegionCount = 0;
-            Regions = new ConcurrentDictionary<int, ConcurrentDictionary<string, RegionalNode>>();
-        }
+        private static ThreadLocal<Region> instances = new ThreadLocal<Region>(() => new Region());
 
-        public static Region GetInstance()
+        private Region() { }
+        public static Region Instance
         {
-            if (region == null)
-            {
-                lock (myLock)
-                {
-                    if (region == null)
-                    {
-                        region = new Region();
-                    }
-                }
-            }
-            return region;
+            get { return instances.Value; }
         }
 
         /// <summary>
@@ -38,12 +26,12 @@ namespace ForestFinal.Forest
         /// Subsequent node additions to latter regions are done inside of <see cref="PredictiveForest.Update(System.Device.Location.GeoCoordinate, double)"/>.
         /// </summary>
         /// <param name="nodes"></param>
-        public void Update(IEnumerable<Node> nodes) 
+        public void Update(IEnumerable<Node> nodes)
         {
             ConcurrentDictionary<string, RegionalNode> newRegion = new ConcurrentDictionary<string, RegionalNode>();
             foreach (Node node in nodes)
             {
-                var regionalNode = new RegionalNode(node, null);
+                RegionalNode regionalNode = new RegionalNode(node, null);
                 regionalNode.Probability = 1;
                 newRegion.TryAdd(node.NodeID, regionalNode);
             }
@@ -80,7 +68,7 @@ namespace ForestFinal.Forest
 
         public Dictionary<string, double> GetHistoricalProbabilities(int step)
         {
-            var probabilities = new Dictionary<string, double>();
+            Dictionary<string, double> probabilities = new Dictionary<string, double>();
             double sumProbability = 0;
 
             Regions.TryGetValue(step, out ConcurrentDictionary<string, RegionalNode> region);
@@ -108,10 +96,7 @@ namespace ForestFinal.Forest
             {
                 RegionalNode node = kv.Value;
                 double probability = (sumProbability - node.Probability) * (1 / auxiliarySumProbability);
-#if DEBUG
-                if (Double.IsNaN(probability)) 
-                    Debugger.Break();
-#endif
+
                 probabilities[kv.Key] = probability;
             }
             return probabilities;

@@ -1,11 +1,14 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Device.Location;
 
 namespace ForestFinal
 {
+    [Serializable()]
     public class Node
     {
         public string NodeID;
+        [NonSerialized]
         public GeoCoordinate Location;
 
         public Dictionary<Node, Edge> IncomingEdges;

@@ -1,9 +1,11 @@
-﻿using System.Collections.Concurrent;
+﻿using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 
 namespace ForestFinal.Forest
 {
+    [Serializable()]
     public class PredictiveNode
     {
         public PredictiveNode(RoadNetwork roadNetwork, Node root, double cost, int depth, int maxDepth, Node parent,

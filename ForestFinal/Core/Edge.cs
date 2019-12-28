@@ -1,5 +1,8 @@
-﻿namespace ForestFinal
+﻿using System;
+
+namespace ForestFinal
 {
+    [Serializable()]
     public class Edge
     {
         public Node Source;

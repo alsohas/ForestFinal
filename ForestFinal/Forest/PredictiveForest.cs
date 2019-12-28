@@ -1,16 +1,18 @@
-﻿using System.Collections.Concurrent;
+﻿using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Device.Location;
 
 namespace ForestFinal.Forest
 {
+    [Serializable()]
     public class PredictiveForest
     {
         public PredictiveForest(RoadNetwork roadNetwork, int depth)
         {
             RoadNetwork = roadNetwork;
             Depth = depth;
-            MRegion = Region.GetInstance();
+            MRegion = Region.Instance;
         }
 
         public void Update(GeoCoordinate center, double radius)

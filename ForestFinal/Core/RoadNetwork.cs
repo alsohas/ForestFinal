@@ -1,10 +1,12 @@
 ﻿using Newtonsoft.Json.Linq;
+using System;
 using System.Collections.Generic;
 using System.Device.Location;
 using System.IO;
 
 namespace ForestFinal
 {
+    [Serializable()]
     public class RoadNetwork
     {
         public Dictionary<string, Node> Nodes;

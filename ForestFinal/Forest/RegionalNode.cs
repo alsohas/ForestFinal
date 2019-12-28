@@ -1,8 +1,10 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Threading.Tasks;
 
 namespace ForestFinal.Forest
 {
+    [Serializable()]
     public class RegionalNode
     {
         public RegionalNode(Node node, HashSet<string> parents)

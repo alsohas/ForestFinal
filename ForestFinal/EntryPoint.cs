@@ -1,4 +1,5 @@
 ﻿using ForestFinal.Experiments;
+using ForestFinal.Forest;
 using ForestFinal.Util;
 using System;
 using System.Collections.Generic;
@@ -12,8 +13,11 @@ namespace ForestFinal
         public static RoadNetwork RoadNetwork;
         public static Dictionary<string, MovingObject> MovingObjects;
 
-        private static void Main()
+        private static void Main(string[] args)
         {
+            var offset = Int32.Parse(args[0]);
+            Parameters.Offset = offset;
+            
             Console.WriteLine("Started road network construction");
             Stopwatch timer = Stopwatch.StartNew();
 
@@ -28,8 +32,10 @@ namespace ForestFinal
 
         private static void StartExperiments()
         {
-            AccuracyEvals accEvals = new AccuracyEvals(RoadNetwork, MovingObjects);
-            accEvals.Start();
+            //AccuracyEvals accEvals = new AccuracyEvals(RoadNetwork, MovingObjects);
+            //accEvals.Start();
+            PerformanceEvals perfEvals = new PerformanceEvals(RoadNetwork, MovingObjects);
+            perfEvals.Start();
         }
     }
 }

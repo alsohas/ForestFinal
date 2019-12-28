@@ -28,26 +28,19 @@ namespace ForestFinal.Experiments
 
         private void HistoricalEvalsFinal()
         {
-            ProgressBarOptions options = new ProgressBarOptions
-            {
-                ForegroundColor = ConsoleColor.Yellow,
-                BackgroundColor = ConsoleColor.DarkYellow,
-                ProgressCharacter = '─',
-                DisplayTimeInRealTime = true
-            };
             List<dynamic> results = new List<dynamic>();
 
-            using (ProgressBar regionSizeBar = new ProgressBar((int)Math.Ceiling(Parameters.MaxRegionSize) / (int)Math.Ceiling(Parameters.RegionSizeIncrement), "Region Size", options))
+            using (ProgressBar regionSizeBar = new ProgressBar((int)Math.Ceiling(Parameters.MaxRegionSize) / (int)Math.Ceiling(Parameters.RegionSizeIncrement), "Region Size", Options))
             {
                 for (double regionSize = Parameters.MinRegionSize; regionSize <= Parameters.MaxRegionSize; regionSize += Parameters.RegionSizeIncrement)
                 {
-                    using (ChildProgressBar objectsBar = regionSizeBar.Spawn(MovingObjects.Count, "Moving Object", options))
+                    using (ChildProgressBar objectsBar = regionSizeBar.Spawn(MovingObjects.Count, "Moving Object", Options))
                     {
                         int objectCount = 0;
                         foreach (KeyValuePair<string, MovingObject> kv in MovingObjects)
                         {
                             objectCount += 1;
-                            Region.GetInstance().Reset(); // reset the region buffer for each object
+                            Region.Instance.Reset(); // reset the region buffer for each object
                             MovingObject movingObject = kv.Value;
                             if (!movingObject.HasValidTrajectory)
                             {
@@ -59,7 +52,7 @@ namespace ForestFinal.Experiments
                                 continue;
                             }
                             PredictiveForest forest = new PredictiveForest(RoadNetwork, 1);
-                            var maxTrajectory = Math.Min(movingObject.Trajectory.Count, 9);
+                            int maxTrajectory = Math.Min(movingObject.Trajectory.Count, 9);
                             for (int update = 0; update < maxTrajectory; update++)
                             {
                                 Node n = movingObject.Trajectory[update];
@@ -69,7 +62,7 @@ namespace ForestFinal.Experiments
                                 }
                                 forest.Update(n.Location, regionSize);
 
-                                var predictedNodes = forest.MRegion.GetHistoricalProbabilities(0);
+                                Dictionary<string, double> predictedNodes = forest.MRegion.GetHistoricalProbabilities(0);
                                 PresentResult result = new PresentResult
                                 {
                                     TripID = movingObject.TripID,
@@ -103,33 +96,26 @@ namespace ForestFinal.Experiments
 
         internal void PresentEvalsFinal()
         {
-            ProgressBarOptions options = new ProgressBarOptions
-            {
-                ForegroundColor = ConsoleColor.Yellow,
-                BackgroundColor = ConsoleColor.DarkYellow,
-                ProgressCharacter = '─',
-                DisplayTimeInRealTime = true
-            };
             List<dynamic> results = new List<dynamic>();
 
-            using (ProgressBar regionSizeBar = new ProgressBar((int)Math.Ceiling(Parameters.MaxRegionSize) / (int)Math.Ceiling(Parameters.RegionSizeIncrement), "Region Size", options))
+            using (ProgressBar regionSizeBar = new ProgressBar((int)Math.Ceiling(Parameters.MaxRegionSize) / (int)Math.Ceiling(Parameters.RegionSizeIncrement), "Region Size", Options))
             {
                 for (double regionSize = Parameters.MinRegionSize; regionSize <= Parameters.MaxRegionSize; regionSize += Parameters.RegionSizeIncrement)
                 {
-                    using (ChildProgressBar objectsBar = regionSizeBar.Spawn(MovingObjects.Count, "Moving Object", options))
+                    using (ChildProgressBar objectsBar = regionSizeBar.Spawn(MovingObjects.Count, "Moving Object", Options))
                     {
                         int objectCount = 0;
                         foreach (KeyValuePair<string, MovingObject> kv in MovingObjects)
                         {
                             objectCount += 1;
-                            Region.GetInstance().Reset(); // reset the region buffer for each object
+                            Region.Instance.Reset(); // reset the region buffer for each object
                             MovingObject movingObject = kv.Value;
                             if (!movingObject.HasValidTrajectory)
                             {
                                 continue;
                             }
                             PredictiveForest forest = new PredictiveForest(RoadNetwork, 1);
-                            var maxTrajectory = Math.Min(movingObject.Trajectory.Count, 9);
+                            int maxTrajectory = Math.Min(movingObject.Trajectory.Count, 9);
                             for (int update = 0; update < maxTrajectory; update++)
                             {
                                 Node n = movingObject.Trajectory[update];
@@ -139,7 +125,7 @@ namespace ForestFinal.Experiments
                                 }
                                 forest.Update(n.Location, regionSize);
 
-                                var predictedNodes = forest.MRegion.GetHistoricalProbabilities(update);
+                                Dictionary<string, double> predictedNodes = forest.MRegion.GetHistoricalProbabilities(update);
                                 PresentResult result = new PresentResult
                                 {
                                     TripID = movingObject.TripID,
@@ -189,7 +175,7 @@ namespace ForestFinal.Experiments
                     {
                         for (double regionSize = Parameters.MinRegionSize; regionSize <= Parameters.MaxRegionSize; regionSize += Parameters.RegionSizeIncrement)
                         {
-                            Dictionary<string, MovingObject> filteredObjects = FilterObjects(predictiveDepth);
+                            Dictionary<string, MovingObject> filteredObjects = MovingObject.FilterObjects(MovingObjects, predictiveDepth);
                             using (ChildProgressBar objectsBar = regionSizeBar.Spawn(filteredObjects.Count, "Moving Object", options))
                             {
                                 int objectCount = 0;
@@ -197,7 +183,7 @@ namespace ForestFinal.Experiments
                                 {
                                     objectCount++;
                                     MovingObject movingObject = kv.Value;
-                                    Region.GetInstance().Reset(); // reset the region buffer for each object
+                                    Region.Instance.Reset(); // reset the region buffer for each object
 
                                     PredictiveForest forest = new PredictiveForest(RoadNetwork, predictiveDepth);
                                     Node predictiveNode = movingObject.Trajectory[predictiveDepth];
@@ -248,87 +234,17 @@ namespace ForestFinal.Experiments
             }
         }
 
-        private Dictionary<string, MovingObject> FilterObjects(int predictiveDepth)
-        {
-            Dictionary<string, MovingObject> filteredObjects = new Dictionary<string, MovingObject>();
-            foreach (KeyValuePair<string, MovingObject> kv in MovingObjects)
-            {
-                MovingObject movingObject = kv.Value;
-                if (!movingObject.HasValidTrajectory || movingObject.Trajectory.Count < predictiveDepth + 3)
-                {
-                    continue;
-                }
-                filteredObjects.Add(kv.Key, movingObject);
-            }
-            return filteredObjects;
-        }
-
         #region fields
         public RoadNetwork RoadNetwork { get; }
         public Dictionary<string, MovingObject> MovingObjects { get; }
-        #endregion
 
-        #region testing
-        public void TestPbar()
+        ProgressBarOptions Options = new ProgressBarOptions
         {
-            const int totalTicks = 100;
-            ProgressBarOptions options = new ProgressBarOptions
-            {
-                ForegroundColor = ConsoleColor.Yellow,
-                BackgroundColor = ConsoleColor.DarkYellow,
-                ProgressCharacter = '─',
-                DisplayTimeInRealTime = false
-            };
-            ProgressBarOptions childOptions = new ProgressBarOptions
-            {
-                ForegroundColor = ConsoleColor.Green,
-                BackgroundColor = ConsoleColor.DarkGreen,
-                ProgressCharacter = '─',
-
-            };
-            using (ProgressBar pbar = new ProgressBar(totalTicks, "main progressbar", options))
-            {
-                for (int i = 0; i < 100; i++)
-                {
-                    Thread.Sleep(50);
-                    pbar.Tick();
-                    using (ChildProgressBar child = pbar.Spawn(totalTicks, "child actions", childOptions))
-                    {
-                        for (int j = 0; j < 100; j++)
-                        {
-                            Thread.Sleep(50);
-                            child.Tick();
-                        }
-                    }
-                };
-            }
-        }
-
-        private void PresentEvals()
-        {
-            foreach (KeyValuePair<string, MovingObject> kv in MovingObjects)
-            {
-                Region.GetInstance().Reset(); // reset the region buffer for each object
-                MovingObject movingObject = kv.Value;
-                if (!movingObject.HasValidTrajectory || movingObject.Trajectory.Count < 3 + 5)
-                {
-                    continue;
-                }
-                PredictiveForest forest = new PredictiveForest(RoadNetwork, 3);
-
-                for (int i = 0; i < movingObject.Trajectory.Count; i++)
-                {
-                    Node n = movingObject.Trajectory[i];
-                    forest.Update(n.Location, 500);
-
-                    double probability = forest.MRegion.GetHistoricalProbability(i, n.NodeID);
-                    Console.WriteLine($"Present Probability for trip {movingObject.TripID} for region {i} after {i} steps is {probability}");
-                    Console.ReadKey();
-                }
-                Console.WriteLine($"Finished building forest for object {movingObject.TripID}");
-            }
-        }
-
+            ForegroundColor = ConsoleColor.Yellow,
+            BackgroundColor = ConsoleColor.DarkYellow,
+            ProgressCharacter = '─',
+            DisplayTimeInRealTime = false
+        };
         #endregion
     }
 }
