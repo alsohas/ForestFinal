@@ -11,10 +11,11 @@ namespace ForestFinal
         {
             TripID = id;
             TrajectoryEdges = trajectoryEdges;
-            Costs = costs;
+            EdgeCosts = costs;
             RoadNetwork = roadNetwork;
 
             Trajectory = new List<Node>();
+            NodalCosts = new Dictionary<string, double>();
             VerifyTrajectory();
         }
 
@@ -28,6 +29,10 @@ namespace ForestFinal
                 {
                     prevDestination = edge.Destination;
                     Trajectory.Add(edge.Source);
+                    if (EdgeCosts.TryGetValue(edge, out var _cost))
+                    {
+                        NodalCosts.Add(prevDestination.NodeID, _cost);
+                    }
                     continue;
                 }
                 if (edge.Source != prevDestination)
@@ -36,7 +41,20 @@ namespace ForestFinal
                     return;
                 }
                 Trajectory.Add(prevDestination);
+                
                 prevDestination = edge.Destination;
+                if (EdgeCosts.TryGetValue(edge, out var cost))
+                {
+                    try
+                    {
+                        NodalCosts.Add(prevDestination.NodeID, cost);
+                    }
+                    catch
+                    {
+                        HasValidTrajectory = false;
+                        return;
+                    }
+                }
             }
             Trajectory.Add(prevDestination);
         }
@@ -44,7 +62,9 @@ namespace ForestFinal
         public List<Node> Trajectory;
         public string TripID { get; }
         public List<Edge> TrajectoryEdges { get; }
-        public Dictionary<Edge, double> Costs { get; }
+        private Dictionary<Edge, double> EdgeCosts { get; }
+        public Dictionary<string, double> NodalCosts { get; }
+
         public RoadNetwork RoadNetwork { get; }
         public bool HasValidTrajectory { get; private set; }
 

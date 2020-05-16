@@ -15,9 +15,9 @@ namespace ForestFinal
 
         private static void Main(string[] args)
         {
-            var offset = Int32.Parse(args[0]);
-            Parameters.Offset = offset;
-            
+            //var offset = Int32.Parse(args[0]);
+            //Parameters.FuncID = offset;
+
             Console.WriteLine("Started road network construction");
             Stopwatch timer = Stopwatch.StartNew();
 
@@ -32,10 +32,10 @@ namespace ForestFinal
 
         private static void StartExperiments()
         {
-            //AccuracyEvals accEvals = new AccuracyEvals(RoadNetwork, MovingObjects);
-            //accEvals.Start();
-            PerformanceEvals perfEvals = new PerformanceEvals(RoadNetwork, MovingObjects);
-            perfEvals.Start();
+            AccuracyEvals accEvals = new AccuracyEvals(RoadNetwork, MovingObjects);
+            accEvals.Start();
+            //PerformanceEvals perfEvals = new PerformanceEvals(RoadNetwork, MovingObjects);
+            //perfEvals.Start();
         }
     }
 }

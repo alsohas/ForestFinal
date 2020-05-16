@@ -7,6 +7,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Text;
 using System.Threading;
+using System.Threading.Tasks;
 
 namespace ForestFinal.Experiments
 {
@@ -20,10 +21,28 @@ namespace ForestFinal.Experiments
 
         public void Start()
         {
-            //PredictiveEvalsConstantRegionFinal();
-            //PresentEvalsFinal();
-            //HistoricalEvalsFinal();
-            //TestPbar();
+            //if (Parameters.FuncID == 1)
+            //{
+            //    HistoricalEvalsFinal();
+            //    return;
+            //}
+            //if (Parameters.FuncID == 2)
+            //{
+            //    PresentEvalsFinal();
+            //    return;
+            //}
+            //if (Parameters.FuncID == 3)
+            //{
+            //    PredictiveEvalsConstantRegionFinal();
+            //    return;
+            //}
+            //if (Parameters.FuncID == 4)
+            //{
+            //    PredictiveEvalsVariableRegionFinal();
+            //    return;
+            //}
+            PredictiveEvalsConstantRegionFinal();
+
         }
 
         private void HistoricalEvalsFinal()
@@ -60,14 +79,24 @@ namespace ForestFinal.Experiments
                                 {
                                     break;
                                 }
-                                forest.Update(n.Location, regionSize);
+                                if (movingObject.NodalCosts.TryGetValue(n.NodeID, out var cost)) {
+                                    forest.Update(n.Location, regionSize, cost);
+                                } else
+                                {
+                                    forest.Update(n.Location, regionSize);
+                                }
 
                                 Dictionary<string, double> predictedNodes = forest.MRegion.GetHistoricalProbabilities(0);
+                                if (predictedNodes == null)
+                                {
+                                    continue;
+                                }
                                 PresentResult result = new PresentResult
                                 {
                                     TripID = movingObject.TripID,
                                     Update = update,
-                                    RegionSize = regionSize
+                                    RegionSize = regionSize,
+                                    NodeCount = predictedNodes.Count
                                 };
                                 if (predictedNodes.TryGetValue(historicalNode.NodeID, out double probability))
                                 {
@@ -98,11 +127,11 @@ namespace ForestFinal.Experiments
         {
             List<dynamic> results = new List<dynamic>();
 
-            using (ProgressBar regionSizeBar = new ProgressBar((int)Math.Ceiling(Parameters.MaxRegionSize) / (int)Math.Ceiling(Parameters.RegionSizeIncrement), "Region Size", Options))
+            //using (ProgressBar regionSizeBar = new ProgressBar((int)Math.Ceiling(Parameters.MaxRegionSize) / (int)Math.Ceiling(Parameters.RegionSizeIncrement), "Region Size", Options))
             {
                 for (double regionSize = Parameters.MinRegionSize; regionSize <= Parameters.MaxRegionSize; regionSize += Parameters.RegionSizeIncrement)
                 {
-                    using (ChildProgressBar objectsBar = regionSizeBar.Spawn(MovingObjects.Count, "Moving Object", Options))
+                    //using (ChildProgressBar objectsBar = regionSizeBar.Spawn(MovingObjects.Count, "Moving Object", Options))
                     {
                         int objectCount = 0;
                         foreach (KeyValuePair<string, MovingObject> kv in MovingObjects)
@@ -126,26 +155,39 @@ namespace ForestFinal.Experiments
                                 forest.Update(n.Location, regionSize);
 
                                 Dictionary<string, double> predictedNodes = forest.MRegion.GetHistoricalProbabilities(update);
+                                Dictionary<string, double> predictedNodesWithCost = forest.MRegion.GetHistoricalProbabilitiesWithCost(update);
+
+                                if (predictedNodes == null)
+                                {
+                                    continue;
+                                }
                                 PresentResult result = new PresentResult
                                 {
                                     TripID = movingObject.TripID,
                                     Update = update,
-                                    RegionSize = regionSize
+                                    RegionSize = regionSize,
+                                    NodeCount = predictedNodes.Count
                                 };
+
                                 if (predictedNodes.TryGetValue(n.NodeID, out double probability))
                                 {
                                     result.Accuracy = probability;
+                                    if (predictedNodesWithCost.TryGetValue(n.NodeID, out double costProbability))
+                                    {
+                                        Console.WriteLine($"Without cost: {probability}, With cost: {costProbability}");
+                                    }
                                 }
                                 else
                                 {
                                     result.Accuracy = 0;
                                 }
+                                Console.ReadKey();
                                 results.Add(result);
                             }
-                            objectsBar.Tick($"Moving Object {objectCount} out of {MovingObjects.Count}");
+                            //objectsBar.Tick($"Moving Object {objectCount} out of {MovingObjects.Count}");
                         }
                     }
-                    regionSizeBar.Tick($"Region Size {regionSize} out of {Parameters.MaxRegionSize}");
+                    //regionSizeBar.Tick($"Region Size {regionSize} out of {Parameters.MaxRegionSize}");
                 }
             }
             using (StreamWriter streamWriter = new StreamWriter($"{Parameters.PresentAccuracyFile}", false, Encoding.UTF8))
@@ -159,24 +201,17 @@ namespace ForestFinal.Experiments
 
         internal void PredictiveEvalsConstantRegionFinal()
         {
-            ProgressBarOptions options = new ProgressBarOptions
-            {
-                ForegroundColor = ConsoleColor.Yellow,
-                BackgroundColor = ConsoleColor.DarkYellow,
-                ProgressCharacter = '─',
-                DisplayTimeInRealTime = true
-            };
             List<dynamic> results = new List<dynamic>();
-            using (ProgressBar predictiveDepthBar = new ProgressBar(Parameters.MaxPredictiveDepth / Parameters.PredictiveDepthIncrement, "Predictive Depth", options))
+            using (ProgressBar predictiveDepthBar = new ProgressBar(Parameters.MaxPredictiveDepth / Parameters.PredictiveDepthIncrement, "Predictive Depth", Options))
             {
                 for (int predictiveDepth = Parameters.MinPredictiveDepth; predictiveDepth <= Parameters.MaxPredictiveDepth; predictiveDepth += Parameters.PredictiveDepthIncrement)
                 {
-                    using (ChildProgressBar regionSizeBar = predictiveDepthBar.Spawn((int)Math.Ceiling(Parameters.MaxRegionSize) / (int)Math.Ceiling(Parameters.RegionSizeIncrement), "Region Size", options))
+                    using (ChildProgressBar regionSizeBar = predictiveDepthBar.Spawn((int)Math.Ceiling(Parameters.MaxRegionSize) / (int)Math.Ceiling(Parameters.RegionSizeIncrement), "Region Size", Options))
                     {
                         for (double regionSize = Parameters.MinRegionSize; regionSize <= Parameters.MaxRegionSize; regionSize += Parameters.RegionSizeIncrement)
                         {
                             Dictionary<string, MovingObject> filteredObjects = MovingObject.FilterObjects(MovingObjects, predictiveDepth);
-                            using (ChildProgressBar objectsBar = regionSizeBar.Spawn(filteredObjects.Count, "Moving Object", options))
+                            using (ChildProgressBar objectsBar = regionSizeBar.Spawn(filteredObjects.Count, "Moving Object", Options))
                             {
                                 int objectCount = 0;
                                 foreach (KeyValuePair<string, MovingObject> kv in filteredObjects)
@@ -197,13 +232,19 @@ namespace ForestFinal.Experiments
                                         forest.Update(centralNode.Location, regionSize);
 
                                         Dictionary<string, double> predictedNodes = forest.PredictNodes(predictiveDepth - update);
-                                        PredictiveResult result = new PredictiveResult();
-                                        result.TripID = movingObject.TripID;
-                                        result.Update = update;
                                         if (predictedNodes == null)
                                         {
                                             continue;
                                         }
+                                        PredictiveResult result = new PredictiveResult
+                                        {
+                                            TripID = movingObject.TripID,
+                                            Update = update,
+                                            PredictiveDepth = predictiveDepth,
+                                            RegionSize = regionSize,
+                                            NodeCount = predictedNodes.Count,
+                                        };
+
                                         if (predictedNodes.TryGetValue(predictiveNode.NodeID, out double probability))
                                         {
                                             result.Accuracy = probability;
@@ -212,8 +253,7 @@ namespace ForestFinal.Experiments
                                         {
                                             result.Accuracy = 0;
                                         }
-                                        result.PredictiveDepth = predictiveDepth;
-                                        result.RegionSize = regionSize;
+
                                         results.Add(result);
                                     }
                                     objectsBar.Tick($"Moving Object {objectCount} out of {filteredObjects.Count}");
@@ -225,7 +265,107 @@ namespace ForestFinal.Experiments
                     predictiveDepthBar.Tick($"Predictive Depth {predictiveDepth} out of {Parameters.MaxPredictiveDepth}");
                 }
             }
+
             using (StreamWriter streamWriter = new StreamWriter($"{Parameters.PredictiveAccuracyFile}", false, Encoding.UTF8))
+            {
+                using (CsvWriter csvWriter = new CsvWriter(streamWriter))
+                {
+                    csvWriter.WriteRecords(results);
+                }
+            }
+        }
+
+        private double GetAccuracy(Dictionary<string, double> predictedNodes, string nodeID)
+        {
+            string maxProbabilityNode = "";
+            double maxProbability = 0;
+            foreach(var kv in predictedNodes)
+            {
+                if (kv.Value > maxProbability)
+                {
+                    maxProbability = kv.Value;
+                    maxProbabilityNode = kv.Key;
+                }
+            }
+            if (maxProbabilityNode == nodeID)
+            {
+                return 1;
+            }
+            else
+            {
+                return 0;
+            }
+        }
+
+        internal void PredictiveEvalsVariableRegionFinal()
+        {
+            List<dynamic> results = new List<dynamic>();
+            using (ProgressBar predictiveDepthBar = new ProgressBar(Parameters.MaxPredictiveDepth / Parameters.PredictiveDepthIncrement, "Predictive Depth", Options))
+            {
+                for (int predictiveDepth = Parameters.MinPredictiveDepth; predictiveDepth <= Parameters.MaxPredictiveDepth; predictiveDepth += Parameters.PredictiveDepthIncrement)
+                {
+                    using (ChildProgressBar regionSizeBar = predictiveDepthBar.Spawn((int)Math.Ceiling(Parameters.MaxRegionSize) / (int)Math.Ceiling(Parameters.RegionSizeIncrement), "Region Size", Options))
+                    {
+                        for (double regionSize = Parameters.MinRegionSize; regionSize <= Parameters.MaxRegionSize; regionSize += Parameters.RegionSizeIncrement)
+                        {
+                            Dictionary<string, MovingObject> filteredObjects = MovingObject.FilterObjects(MovingObjects, predictiveDepth + 6);
+                            using (ChildProgressBar objectsBar = regionSizeBar.Spawn(filteredObjects.Count, "Moving Object", Options))
+                            {
+                                int objectCount = 0;
+                                foreach (KeyValuePair<string, MovingObject> kv in filteredObjects)
+                                {
+                                    objectCount++;
+                                    MovingObject movingObject = kv.Value;
+                                    Region.Instance.Reset(); // reset the region buffer for each object
+
+                                    PredictiveForest forest = new PredictiveForest(RoadNetwork, predictiveDepth);
+                                    for (int update = 0; update < movingObject.Trajectory.Count; update++)
+                                    {
+
+                                        Node centralNode = movingObject.Trajectory[update];
+                                        forest.Update(centralNode.Location, regionSize);
+
+                                        int predictiveStep = predictiveDepth + update;
+                                        if (predictiveStep >= movingObject.Trajectory.Count)
+                                        {
+                                            break;
+                                        }
+                                        Node predictiveNode = movingObject.Trajectory[predictiveStep];
+                                        Dictionary<string, double> predictedNodes = forest.PredictNodes(predictiveDepth);
+                                        if (predictedNodes == null)
+                                        {
+                                            continue;
+                                        }
+                                        PredictiveResult result = new PredictiveResult
+                                        {
+                                            TripID = movingObject.TripID,
+                                            Update = update,
+                                            PredictiveDepth = predictiveDepth,
+                                            RegionSize = regionSize,
+                                            NodeCount = predictedNodes.Count
+                                        };
+                                        
+                                        if (predictedNodes.TryGetValue(predictiveNode.NodeID, out double probability))
+                                        {
+                                            result.Accuracy = probability;
+                                        }
+                                        else
+                                        {
+                                            result.Accuracy = 0;
+                                        }
+
+                                        results.Add(result);
+                                    }
+                                    objectsBar.Tick($"Moving Object {objectCount} out of {filteredObjects.Count}");
+                                }
+                            }
+                            regionSizeBar.Tick($"Region Size {regionSize} out of {Parameters.MaxRegionSize}");
+                        }
+                    }
+                    predictiveDepthBar.Tick($"Predictive Depth {predictiveDepth} out of {Parameters.MaxPredictiveDepth}");
+                }
+            }
+            using (StreamWriter streamWriter = new StreamWriter($"{Parameters.ContinuousPredictiveAccuracyFile}", false, Encoding.UTF8))
             {
                 using (CsvWriter csvWriter = new CsvWriter(streamWriter))
                 {

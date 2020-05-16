@@ -63,6 +63,10 @@ namespace ForestFinal.Forest
             foreach (KeyValuePair<Node, Edge> kvPair in Root.OutgoingEdges)
             {
                 Node node = kvPair.Key;
+                if (Region.Instance.ObsoleteNodes.Contains(node.NodeID))
+                {
+                    continue;
+                }
                 if (Parent != null && Parent.NodeID == node.NodeID) // avoid cyclic relations
                 {
                     continue;

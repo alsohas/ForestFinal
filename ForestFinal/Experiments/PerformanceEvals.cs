@@ -24,27 +24,23 @@ namespace ForestFinal.Experiments
         public void Start()
         {
             PerformanceEvalsFinal();
-            //PredictiveEvalsConstantRegionFinal();
-            //PresentEvalsFinal();
-            //HistoricalEvalsFinal();
-            //TestPbar();
         }
 
         internal void PerformanceEvalsFinal()
         {
 
-            using (ProgressBar predictiveDepthBar = new ProgressBar(Parameters.MaxPredictiveDepth / Parameters.PredictiveDepthIncrement, "Predictive Depth", Options))
+            //using (ProgressBar predictiveDepthBar = new ProgressBar(Parameters.MaxPredictiveDepth / Parameters.PredictiveDepthIncrement, "Predictive Depth", Options))
             {
                 for (int predictiveDepth = Parameters.MinPredictiveDepth; predictiveDepth <= Parameters.MaxPredictiveDepth; predictiveDepth += Parameters.PredictiveDepthIncrement)
                 {
-                    using (ChildProgressBar regionSizeBar = predictiveDepthBar.Spawn((int)Math.Ceiling(Parameters.MaxRegionSize) / (int)Math.Ceiling(Parameters.RegionSizeIncrement), "Region Size", Options))
+                    //using (ChildProgressBar regionSizeBar = predictiveDepthBar.Spawn((int)Math.Ceiling(Parameters.MaxRegionSize) / (int)Math.Ceiling(Parameters.RegionSizeIncrement), "Region Size", Options))
                     {
                         for (double regionSize = Parameters.MinRegionSize; regionSize <= Parameters.MaxRegionSize; regionSize += Parameters.RegionSizeIncrement)
                         {
                             Dictionary<string, MovingObject> filteredObjects = MovingObject.FilterObjects(MovingObjects, predictiveDepth);
                             int maxObjectsCount = Math.Min(filteredObjects.Count, Parameters.Offset);
                             int minObjectsCount = Math.Max(0, Parameters.Offset - 1000);
-                            using (ChildProgressBar objectsBar = regionSizeBar.Spawn(maxObjectsCount - minObjectsCount, "Moving Object", Options))
+                            //using (ChildProgressBar objectsBar = regionSizeBar.Spawn(maxObjectsCount - minObjectsCount, "Moving Object", Options))
                             {
                                 List<Task> taskList = new List<Task>();
 
@@ -53,23 +49,27 @@ namespace ForestFinal.Experiments
                                 {
                                     objectCount++;
                                     MovingObject movingObject = filteredObjects.Values.ElementAt(i);
-                                    Task objectEvalTask = Task.Factory.StartNew(() => EvaluateObject(movingObject, regionSize, predictiveDepth, objectsBar, i, maxObjectsCount));
-                                    taskList.Add(objectEvalTask);
-                                    if (objectCount % 5 == 0)
-                                    {
-                                        Task.WaitAll(taskList.ToArray());
-                                        taskList.Clear();
-                                    }
+                                    Console.WriteLine("WHOA");
+                                    EvaluateObject(movingObject, regionSize, predictiveDepth, null, i, maxObjectsCount); // todo: delete
+                                    Console.WriteLine("WHOA");
+                                    Console.ReadKey();
+                                    //Task objectEvalTask = Task.Factory.StartNew(() => EvaluateObject(movingObject, regionSize, predictiveDepth, objectsBar, i, maxObjectsCount));
+                                    //taskList.Add(objectEvalTask);
+                                    //if (objectCount % 1 == 0)
+                                    //{
+                                    //    Task.WaitAll(taskList.ToArray());
+                                    //    taskList.Clear();
+                                    //}
                                 }
-                                Task.WaitAll(taskList.ToArray());
+                                //Task.WaitAll(taskList.ToArray());
                             }
-                            regionSizeBar.Tick($"Region Size {regionSize} out of {Parameters.MaxRegionSize}");
+                            //regionSizeBar.Tick($"Region Size {regionSize} out of {Parameters.MaxRegionSize}");
                         }
                     }
-                    predictiveDepthBar.Tick($"Predictive Depth {predictiveDepth} out of {Parameters.MaxPredictiveDepth}");
+                    //predictiveDepthBar.Tick($"Predictive Depth {predictiveDepth} out of {Parameters.MaxPredictiveDepth}");
                 }
             }
-            using (StreamWriter streamWriter = new StreamWriter($"{Parameters.Offset}{Parameters.PerformanceFile}", false, Encoding.UTF8))
+            using (StreamWriter streamWriter = new StreamWriter($"{Parameters.PerformanceFile}.{Parameters.Offset}", false, Encoding.UTF8))
             {
                 using (CsvWriter csvWriter = new CsvWriter(streamWriter))
                 {
@@ -118,12 +118,14 @@ namespace ForestFinal.Experiments
 
                 result.Memory = memUsed;
                 result.Time = timeElapsed;
+                Console.WriteLine(result.ToString());
+                Console.ReadKey();
                 lock(Results)
                 {
                     Results.Add(result);
                 }
             }
-            objectsBar.Tick($"Moving Object {objectIndex} out of {totalObjects}");
+            //objectsBar.Tick($"Moving Object {objectIndex} out of {totalObjects}");
         }
 
         #region fields

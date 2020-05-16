@@ -10,7 +10,7 @@
         #endregion
 
         #region experiments
-        public static int MaxPredictiveDepth = 5;
+        public static int MaxPredictiveDepth = 6;
         public static int MinPredictiveDepth = 1;
         public static int PredictiveDepthIncrement = 1;
 
@@ -20,13 +20,17 @@
 
         private static string ResultsFolder = "/Experiments/Results/";
         
-        public static string PredictiveAccuracyFile = $"{ResultsFolder}predictive_results.csv";
+        public static string PredictiveAccuracyFile = $"{ResultsFolder}predictive_results_no_obsolete.csv";
+        public static string ContinuousPredictiveAccuracyFile = $"{ResultsFolder}continuous_predictive_results.csv";
+
         public static string PresentAccuracyFile = $"{ResultsFolder}present_results.csv";
         public static object HistoricalAccuracyFile = $"{ResultsFolder}past_results.csv";
 
         public static object PerformanceFile = $"{ResultsFolder}performance_results.csv";
 
-        public static int Offset = 0;
+        public static int Offset = 20;
+
+        public static int FuncID = 2;
         #endregion
     }
 }

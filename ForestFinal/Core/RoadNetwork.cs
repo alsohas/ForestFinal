@@ -6,7 +6,7 @@ using System.IO;
 
 namespace ForestFinal
 {
-    [Serializable()]
+    [Serializable]
     public class RoadNetwork
     {
         public Dictionary<string, Node> Nodes;

@@ -10,7 +10,7 @@ namespace ForestFinal.Forest
     {
         public PredictiveForest(RoadNetwork roadNetwork, int depth)
         {
-            RoadNetwork = roadNetwork;
+            SetRoadNetwork(roadNetwork);
             Depth = depth;
             MRegion = Region.Instance;
         }
@@ -19,7 +19,7 @@ namespace ForestFinal.Forest
         {
             if (CurrentStep == 0)
             {
-                MRegion.Update(RoadNetwork.GetNodesWithinRange(center, radius));
+                MRegion.Update(GetRoadNetwork().GetNodesWithinRange(center, radius));
                 MRegion.Regions.TryGetValue(CurrentStep, out ConcurrentDictionary<string, RegionalNode> region);
                 ExpandPredictiveTrees(region);
                 CurrentStep += 1;
@@ -38,7 +38,7 @@ namespace ForestFinal.Forest
 
             // gathering new nodes within latest region
             HashSet<string> currentNodes = new HashSet<string>();
-            foreach (Node n in RoadNetwork.GetNodesWithinRange(center, radius))
+            foreach (Node n in GetRoadNetwork().GetNodesWithinRange(center, radius))
             {
                 currentNodes.Add(n.NodeID);
             }
@@ -69,7 +69,7 @@ namespace ForestFinal.Forest
             ConcurrentDictionary<string, RegionalNode> newRegion = new ConcurrentDictionary<string, RegionalNode>();
             foreach (string nodeID in currentNodes) // note that current node has been cleared of all dead-end nodes
             {
-                RoadNetwork.Nodes.TryGetValue(nodeID, out Node node);
+                GetRoadNetwork().Nodes.TryGetValue(nodeID, out Node node);
                 RegionalNode currentNode = new RegionalNode(node, parents: validParents);
                 newRegion.TryAdd(nodeID, currentNode);
             }
@@ -85,6 +85,12 @@ namespace ForestFinal.Forest
             CurrentStep += 1; // increment how many steps we've received updates from
         }
 
+        internal void Update(GeoCoordinate center, double regionSize, double cost)
+        {
+            MRegion.AddCost(CurrentStep, cost);
+            Update(center, regionSize);
+        }
+
         /// <summary>
         /// Prunes nodes from the previous region, if at the top most region, removes nodes entirely
         /// </summary>
@@ -93,6 +99,7 @@ namespace ForestFinal.Forest
         /// <returns></returns>
         private int PruneRegions(int steps, HashSet<string> obsoleteNodes)
         {
+            MRegion.ObsoleteNodes.UnionWith(obsoleteNodes);
             if (obsoleteNodes.Count == 0)
             {
                 return steps;
@@ -130,8 +137,12 @@ namespace ForestFinal.Forest
             PredictiveRegions = new ConcurrentDictionary<int, ConcurrentDictionary<string, List<PredictiveNode>>>();
             foreach (KeyValuePair<string, RegionalNode> kv in newRegion)
             {
-                RoadNetwork.Nodes.TryGetValue(kv.Value.NodeID, out Node node);
-                PredictiveNode predictiveNode = new PredictiveNode(RoadNetwork, node, cost: 0, depth: Depth, maxDepth: Depth, null,
+                if (MRegion.ObsoleteNodes.Contains(kv.Value.NodeID))
+                {
+                    continue;
+                }
+                GetRoadNetwork().Nodes.TryGetValue(kv.Value.NodeID, out Node node);
+                PredictiveNode predictiveNode = new PredictiveNode(GetRoadNetwork(), node, cost: 0, depth: Depth, maxDepth: Depth, null,
                                                                    PredictiveRegions);
                 predictiveNode.Expand();
             }
@@ -234,9 +245,22 @@ namespace ForestFinal.Forest
         #endregion
 
         public ConcurrentDictionary<int, ConcurrentDictionary<string, List<PredictiveNode>>> PredictiveRegions;
-        public RoadNetwork RoadNetwork { get; private set; }
+        [NonSerialized()]
+        private RoadNetwork roadNetwork;
+
+        public RoadNetwork GetRoadNetwork()
+        {
+            return roadNetwork;
+        }
+
+        private void SetRoadNetwork(RoadNetwork value)
+        {
+            roadNetwork = value;
+        }
+
         public int Depth { get; private set; }
         public Region MRegion { get; private set; }
+
         public int CurrentStep = 0;
     }
 }

@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Threading;
 
 namespace ForestFinal.Forest
@@ -12,6 +13,10 @@ namespace ForestFinal.Forest
         //private static Region region = null;
         public int RegionCount = 0;
         public ConcurrentDictionary<int, ConcurrentDictionary<string, RegionalNode>> Regions = new ConcurrentDictionary<int, ConcurrentDictionary<string, RegionalNode>>();
+        //public ConcurrentDictionary<int, ConcurrentDictionary<string, RegionalNode>> Costs = new ConcurrentDictionary<int, ConcurrentDictionary<string, RegionalNode>>();
+        public ConcurrentDictionary<int, double> Costs = new ConcurrentDictionary<int, double>();
+        public HashSet<string> ObsoleteNodes = new HashSet<string>();
+
 
         private static ThreadLocal<Region> instances = new ThreadLocal<Region>(() => new Region());
 
@@ -37,33 +42,6 @@ namespace ForestFinal.Forest
             }
             Regions.TryAdd(RegionCount, newRegion);
             RegionCount += 1;
-        }
-
-        public double GetHistoricalProbability(int step, string nodeID)
-        {
-            double sumProbability = 0;
-
-            Regions.TryGetValue(step, out ConcurrentDictionary<string, RegionalNode> region);
-            if (region == null)
-            {
-                return 0;
-            }
-            region.TryGetValue(nodeID, out RegionalNode node);
-            if (node == null)
-            {
-                return 0;
-            }
-            foreach (KeyValuePair<string, RegionalNode> kv in region)
-            {
-                sumProbability += kv.Value.Probability;
-            }
-            if (sumProbability == node.Probability)
-            {
-                return 1;
-            }
-            double auxiliarySumProbability = (region.Count - 1) * sumProbability;
-            double probability = (sumProbability - node.Probability) * (1 / auxiliarySumProbability);
-            return probability;
         }
 
         public Dictionary<string, double> GetHistoricalProbabilities(int step)
@@ -102,6 +80,32 @@ namespace ForestFinal.Forest
             return probabilities;
         }
 
+        public Dictionary<string, double> GetHistoricalProbabilitiesWithCost(int step)
+        {
+            if (!Costs.TryGetValue(step, out var cost))
+            {
+                GetHistoricalProbabilities(step);
+            }
+
+            Dictionary<string, double> probabilities = new Dictionary<string, double>();
+            double sumProbability = 0;
+
+            Regions.TryGetValue(step, out ConcurrentDictionary<string, RegionalNode> region);
+
+            foreach (KeyValuePair<string, RegionalNode> kv in region)
+            {
+                sumProbability += Math.Abs(cost - kv.Value.Probability);
+            }
+            double auxiliarySumProbability = (region.Count - 1) * sumProbability;
+
+            foreach (KeyValuePair<string, RegionalNode> kv in region)
+            {
+                double probability = (sumProbability - Math.Abs(cost - kv.Value.Probability)) * (1 / auxiliarySumProbability);
+                probabilities[kv.Key] = probability;
+            }
+            return probabilities;
+        }
+
         public void Reset()
         {
             RegionCount = 0;
@@ -111,6 +115,11 @@ namespace ForestFinal.Forest
         public override string ToString()
         {
             return GetHashCode().ToString();
+        }
+
+        internal void AddCost(int currentStep, double cost)
+        {
+            Costs[currentStep] = cost;
         }
     }
 }
